@@ -115,6 +115,10 @@ func (p *Package) InstallFiles() error {
 }
 
 func (p *Package) DoPre() ([]byte, error) {
+	if p.PreInstall == "" {
+		return []byte{}, nil
+	}
+
 	f, err := ioutil.TempFile("", fmt.Sprintf("%v-%v-%v-preinstall", p.Name, p.Version, p.Release))
 	if err != nil {
 		return nil, err
@@ -129,6 +133,10 @@ func (p *Package) DoPre() ([]byte, error) {
 }
 
 func (p *Package) DoPost() ([]byte, error) {
+	if p.PostInstall == "" {
+		return []byte{}, nil
+	}
+
 	f, err := ioutil.TempFile("", fmt.Sprintf("%v-%v-%v-postinstall", p.Name, p.Version, p.Release))
 	if err != nil {
 		return nil, err
