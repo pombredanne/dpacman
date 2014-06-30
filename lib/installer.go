@@ -1,4 +1,4 @@
-package main
+package dpacman
 
 import (
 	"errors"
@@ -10,7 +10,9 @@ import (
 	"github.com/fsouza/go-dockerclient"
 )
 
-const InstallationMarksPath = "/etc/dpacman/"
+const (
+	INSTALLATION_MARKS_PATH = "/etc/dpacman/"
+)
 
 type Installer struct {
 	DockerClient *docker.Client
@@ -58,7 +60,7 @@ func (in *Installer) InstallPackage(p *Package) error {
 	}
 
 	log.Print("Creating installation mark...")
-	err = p.CreateMark(InstallationMarksPath)
+	err = p.CreateMark(INSTALLATION_MARKS_PATH)
 	if err != nil {
 		return errors.New("Error creating the installation mark: " + err.Error())
 	}

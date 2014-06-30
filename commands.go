@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/codegangsta/cli"
+	"github.com/teambox/dpacman/lib"
 )
 
 var installCmd = cli.Command{
@@ -25,13 +26,13 @@ var installCmd = cli.Command{
 			os.Exit(1)
 		}
 
-		p, err := LoadFromLocalPath(ppath)
+		p, err := dpacman.LoadFromLocalPath(ppath)
 		if err != nil {
 			fmt.Println(err.Error())
 			os.Exit(1)
 		}
 
-		i, err := NewInstaller(c.GlobalString("docker"))
+		i, err := dpacman.NewInstaller(c.GlobalString("docker"))
 		if err != nil {
 			fmt.Println(err.Error())
 			os.Exit(1)
@@ -59,7 +60,7 @@ var infoCmd = cli.Command{
 			log.Fatal(err)
 		}
 
-		p, err := LoadFromLocalPath(ppath)
+		p, err := dpacman.LoadFromLocalPath(ppath)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -83,7 +84,7 @@ var buildCmd = cli.Command{
 			log.Fatal("No source path provided!")
 		}
 
-		i, err := NewInstaller(c.GlobalString("docker"))
+		i, err := dpacman.NewInstaller(c.GlobalString("docker"))
 		if err != nil {
 			log.Fatal(err)
 		}

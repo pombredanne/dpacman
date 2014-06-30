@@ -1,4 +1,4 @@
-package main
+package dpacman
 
 type Image struct {
 	Tag  string

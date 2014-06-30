@@ -7,9 +7,9 @@ import (
 )
 
 const (
-	APP_VER           string = "0.0.1"
-	DOCKER_ENDPOINT   string = "unix://var/run/docker.sock"
-	BUILD_OUTPUT_PATH string = "/var/lib/dpacman/builds"
+	APP_VER           = "0.0.1"
+	DOCKER_ENDPOINT   = "unix://var/run/docker.sock"
+	BUILD_OUTPUT_PATH = "/var/lib/dpacman/builds"
 )
 
 func main() {
