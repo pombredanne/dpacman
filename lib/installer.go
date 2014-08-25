@@ -2,9 +2,7 @@ package dpacman
 
 import (
 	"errors"
-	"fmt"
 	"log"
-	"os/exec"
 	"path/filepath"
 
 	"github.com/fsouza/go-dockerclient"
@@ -82,42 +80,4 @@ func (in *Installer) ImportImage(p *Package, img *Image) error {
 	}
 
 	return in.DockerClient.ImportImage(opts)
-}
-
-// This method will use a shrinked image with no history
-// - Create container
-// - Export container as an image
-// - Delete container
-func (in *Installer) SaveImage(p *Package, img *Image) error {
-
-	// Create a container based on the provided image
-	copts := docker.CreateContainerOptions{
-		Config: &docker.Config{
-			Cmd:   []string{"/bin/bash"},
-			Image: img.FullName(),
-		},
-	}
-
-	container, err := in.DockerClient.CreateContainer(copts)
-	if err != nil {
-		return err
-	}
-
-	// Export container as an image
-	cmd := fmt.Sprintf("docker export %v > %v", container.ID, filepath.Join(p.Path, img.Path))
-	c := exec.Command("bash", "-c", cmd)
-	if out, err := c.CombinedOutput(); err != nil {
-		return errors.New("Error saving " + img.FullName() + ": " + string(out))
-	}
-
-	ropts := docker.RemoveContainerOptions{
-		ID:    container.ID,
-		Force: true,
-	}
-
-	if err = in.DockerClient.RemoveContainer(ropts); err != nil {
-		return err
-	}
-
-	return nil
 }

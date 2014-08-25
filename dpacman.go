@@ -19,7 +19,7 @@ func main() {
 	app.Author = "Salvador Girones <salvador@redbooth.com>"
 	app.Version = APP_VER
 	app.Flags = []cli.Flag{
-		cli.StringFlag{"docker", DOCKER_ENDPOINT, "Docker endpoint"},
+		cli.StringFlag{"docker", DOCKER_ENDPOINT, "Docker endpoint", ""},
 	}
 	app.Commands = []cli.Command{
 		installCmd,

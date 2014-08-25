@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/user"
 	"path/filepath"
 
 	"github.com/codegangsta/cli"
@@ -77,19 +78,25 @@ var infoCmd = cli.Command{
 
 var buildCmd = cli.Command{
 	Name:        "build",
-	Usage:       "dpacman build </path/to/package/contents>",
+	Usage:       "dpacman build </path/to/package/Dpacman>",
 	Description: "Build a dpacman package from a source folder",
 	Action: func(c *cli.Context) {
 		if len(c.Args()) == 0 {
 			log.Fatal("No source path provided!")
 		}
 
-		i, err := dpacman.NewInstaller(c.GlobalString("docker"))
+		u, err := user.Current()
+		if err != nil {
+			log.Fatal(err)
+		}
+		builder_path := filepath.Join(u.HomeDir, ".dpacman")
+
+		b, err := dpacman.NewBuilder(c.GlobalString("docker"), builder_path)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		out, err := i.BuildPackage(c.Args()[0])
+		out, err := b.BuildPackage(c.Args()[0])
 		if err != nil {
 			log.Fatal(err)
 		}

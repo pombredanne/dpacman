@@ -11,17 +11,51 @@ import (
 	"path/filepath"
 
 	"github.com/dotcloud/docker/archive"
+	"github.com/fsouza/go-dockerclient"
 )
 
-const (
-	BUILDER_INPROGRESS_FOLDER = "/var/lib/dpacman/inprogress"
-	BUILDER_SUCCESSFUL_FOLDER = "/var/lib/dpacman/successful"
-	BUILDER_ERROR_FOLDER      = "/var/lib/dpacman/error"
-)
+type Builder struct {
+	DockerClient           *docker.Client
+	BuilderRootFolder      string
+	successfulBuildsFolder string
+	inprogressBuildsFolder string
+	failedBuildsFolder     string
+}
 
-func (in *Installer) BuildPackage(src_path string) (string, error) {
-	if err := prepareBuilderEnv(); err != nil {
+func NewBuilder(endpoint string, builder_root_folder string) (*Builder, error) {
+	client, err := docker.NewClient(endpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Builder{
+		DockerClient:           client,
+		BuilderRootFolder:      builder_root_folder,
+		successfulBuildsFolder: filepath.Join(builder_root_folder, "/successful"),
+		inprogressBuildsFolder: filepath.Join(builder_root_folder, "/inprogress"),
+		failedBuildsFolder:     filepath.Join(builder_root_folder, "/failed"),
+	}, nil
+}
+
+func (b *Builder) BuildPackage(src_path string) (string, error) {
+
+	p, err := LoadPackageSpec(src_path)
+	if err != nil {
+		return "", errors.New("Can't load Dpacman: " + err.Error())
+	}
+
+	if err := b.prepareBuilderEnv(); err != nil {
 		log.Print("Error preparing builder env")
+		return "", err
+	}
+
+	failed_folder, err := b.createFailedFolder(p.FullName())
+	if err != nil {
+		return "", err
+	}
+
+	inprogress_folder, err := b.createInprogressFolder(p.FullName())
+	if err != nil {
 		return "", err
 	}
 
@@ -30,23 +64,7 @@ func (in *Installer) BuildPackage(src_path string) (string, error) {
 		return "", errors.New("Error determining package's absolute path: " + err.Error())
 	}
 
-	dpacman_file := filepath.Join(src_abs_path, PACKAGE_SPEC_FILE)
-	p, err := LoadPackageSpec(dpacman_file)
-	if err != nil {
-		return "", errors.New("Can't load Dpacman: " + err.Error())
-	}
-
-	error_folder, err := createErrorFolder(p.FullName())
-	if err != nil {
-		return "", err
-	}
-
-	inprogress_folder, err := createInprogressFolder(p.FullName())
-	if err != nil {
-		return "", err
-	}
-
-	if err := copyContent(src_abs_path, inprogress_folder); err != nil {
+	if err := copyContent(filepath.Dir(src_abs_path), inprogress_folder); err != nil {
 		return "", err
 	}
 
@@ -57,9 +75,14 @@ func (in *Installer) BuildPackage(src_path string) (string, error) {
 	if err := p.CheckFilesExist(); err != nil {
 		log.Print("Error checking package's files")
 
-		if err := moveContent(inprogress_folder, error_folder); err != nil {
+		if err := moveContent(inprogress_folder, failed_folder); err != nil {
 			return "", err
 		}
+
+		if err := b.createFailedBuildLink(failed_folder); err != nil {
+			return "", err
+		}
+
 		os.RemoveAll(inprogress_folder)
 
 		return "", err
@@ -72,12 +95,17 @@ func (in *Installer) BuildPackage(src_path string) (string, error) {
 
 	for _, i := range p.Images {
 		log.Println("Saving image " + i.FullName())
-		if err := in.SaveImage(p, i); err != nil {
+		if err := b.SaveImage(p, i); err != nil {
 			log.Print("Error saving image")
 
-			if err := moveContent(inprogress_folder, error_folder); err != nil {
+			if err := moveContent(inprogress_folder, failed_folder); err != nil {
 				return "", err
 			}
+
+			if err := b.createFailedBuildLink(failed_folder); err != nil {
+				return "", err
+			}
+
 			os.RemoveAll(inprogress_folder)
 
 			return "", err
@@ -91,9 +119,14 @@ func (in *Installer) BuildPackage(src_path string) (string, error) {
 	if err != nil {
 		log.Print("Error compressing " + inprogress_folder + " content")
 
-		if err := moveContent(inprogress_folder, error_folder); err != nil {
+		if err := moveContent(inprogress_folder, failed_folder); err != nil {
 			return "", err
 		}
+
+		if err := b.createFailedBuildLink(failed_folder); err != nil {
+			return "", err
+		}
+
 		os.RemoveAll(inprogress_folder)
 
 		return "", err
@@ -103,9 +136,14 @@ func (in *Installer) BuildPackage(src_path string) (string, error) {
 	if err != nil {
 		log.Print("Error creating output file " + out_filepath)
 
-		if err := moveContent(inprogress_folder, error_folder); err != nil {
+		if err := moveContent(inprogress_folder, failed_folder); err != nil {
 			return "", err
 		}
+
+		if err := b.createFailedBuildLink(failed_folder); err != nil {
+			return "", err
+		}
+
 		os.RemoveAll(inprogress_folder)
 
 		return "", err
@@ -116,16 +154,21 @@ func (in *Installer) BuildPackage(src_path string) (string, error) {
 		log.Print("Error copying tar content to " + out_filepath)
 		f.Close()
 
-		if err := moveContent(inprogress_folder, error_folder); err != nil {
+		if err := moveContent(inprogress_folder, failed_folder); err != nil {
 			return "", err
 		}
+
+		if err := b.createFailedBuildLink(failed_folder); err != nil {
+			return "", err
+		}
+
 		os.RemoveAll(inprogress_folder)
 
 		return "", err
 	}
 	f.Close()
 
-	successful_folder, err := createSuccessfulFolder(p.FullName())
+	successful_folder, err := b.createSuccessfulFolder(p.FullName())
 	if err != nil {
 		return "", err
 	}
@@ -133,36 +176,73 @@ func (in *Installer) BuildPackage(src_path string) (string, error) {
 	if err := moveContent(inprogress_folder, successful_folder); err != nil {
 		return "", err
 	}
+
+	if err := b.createSuccessfulBuildLink(successful_folder); err != nil {
+		return "", err
+	}
+
 	os.RemoveAll(inprogress_folder)
 
 	return filepath.Join(successful_folder, out_filename), nil
 }
 
-func createSuccessfulFolder(name string) (string, error) {
-	// Create the tmp folder
-	tmp_src_path, err := ioutil.TempDir(BUILDER_SUCCESSFUL_FOLDER, name)
+func (b *Builder) createSuccessfulFolder(name string) (string, error) {
+	// Create the tmp folder for a successful job
+	tmp_src_path, err := ioutil.TempDir(b.successfulBuildsFolder, name)
 	if err != nil {
 		return "", errors.New("Error creating " + tmp_src_path + ": " + err.Error())
 	}
 	return tmp_src_path, nil
 }
 
-func createErrorFolder(name string) (string, error) {
-	// Create the tmp folder
-	tmp_src_path, err := ioutil.TempDir(BUILDER_ERROR_FOLDER, name)
+func (b *Builder) createSuccessfulBuildLink(build_path string) error {
+	symlink_path := filepath.Join(b.successfulBuildsFolder, "/latest")
+	return createSymLink(build_path, symlink_path)
+}
+
+func (b *Builder) createFailedFolder(name string) (string, error) {
+	// Create the tmp folder for a failed job
+	tmp_src_path, err := ioutil.TempDir(b.failedBuildsFolder, name)
 	if err != nil {
 		return "", errors.New("Error creating " + tmp_src_path + ": " + err.Error())
 	}
 	return tmp_src_path, nil
 }
 
-func createInprogressFolder(name string) (string, error) {
-	// Create the tmp folder
-	tmp_src_path, err := ioutil.TempDir(BUILDER_INPROGRESS_FOLDER, name)
+func (b *Builder) createFailedBuildLink(build_path string) error {
+	symlink_path := filepath.Join(b.failedBuildsFolder, "/latest")
+	return createSymLink(build_path, symlink_path)
+}
+
+func (b *Builder) createInprogressFolder(name string) (string, error) {
+	// Create the tmp folder for an inprogress job
+	tmp_src_path, err := ioutil.TempDir(b.inprogressBuildsFolder, name)
 	if err != nil {
 		return "", errors.New("Error creating " + tmp_src_path + ": " + err.Error())
 	}
 	return tmp_src_path, nil
+}
+
+func (b *Builder) prepareBuilderEnv() error {
+	folders := []string{b.failedBuildsFolder, b.successfulBuildsFolder, b.inprogressBuildsFolder}
+	for _, f := range folders {
+		c := exec.Command("mkdir", "-p", f)
+		if out, err := c.CombinedOutput(); err != nil {
+			return errors.New("Error creating " + f + ": " + string(out))
+		}
+	}
+	return nil
+}
+
+func (b *Builder) SaveImage(p *Package, img *Image) error {
+	// Export container as an image
+	cmd := fmt.Sprintf("docker save %v > %v", img.FullName(), filepath.Join(p.Path, img.Path))
+	c := exec.Command("bash", "-c", cmd)
+	if out, err := c.CombinedOutput(); err != nil {
+		return errors.New("Error saving " + img.FullName() + ": " + string(out))
+	}
+
+	return nil
 }
 
 func copyContent(src, dst string) error {
@@ -183,13 +263,20 @@ func moveContent(src, dst string) error {
 	return nil
 }
 
-func prepareBuilderEnv() error {
-	folders := []string{BUILDER_ERROR_FOLDER, BUILDER_SUCCESSFUL_FOLDER, BUILDER_INPROGRESS_FOLDER}
-	for _, f := range folders {
-		c := exec.Command("mkdir", "-p", f)
-		if out, err := c.CombinedOutput(); err != nil {
-			return errors.New("Error creating " + f + ": " + string(out))
-		}
+func createSymLink(oldname, newname string) error {
+	_, err := os.Lstat(newname)
+
+	// If file exists but Lstat raised an error, exit
+	if err != nil && !os.IsNotExist(err) {
+		log.Print("AHA")
+		log.Print(err)
+		return err
 	}
+
+	os.Remove(newname)
+	if err := os.Symlink(oldname, newname); err != nil {
+		return errors.New("Error creating " + newname + ": " + err.Error())
+	}
+
 	return nil
 }
