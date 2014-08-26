@@ -112,9 +112,15 @@ func (b *Builder) BuildPackage(src_path string) (string, error) {
 		}
 	}
 
-	log.Println("Compressing package...")
+	dir, err := ioutil.TempDir("", "dpacman")
+	if err != nil {
+		return "", err
+	}
+
 	out_filename := filepath.Join(p.FullName() + ".tar.gz")
-	out_filepath := filepath.Join(inprogress_folder, out_filename)
+	out_filepath := filepath.Join(dir, out_filename)
+
+	log.Println("Generating package...")
 
 	out, err := archive.Tar(inprogress_folder, archive.Gzip)
 	if err != nil {
@@ -168,7 +174,6 @@ func (b *Builder) BuildPackage(src_path string) (string, error) {
 		return "", err
 	}
 	f.Close()
-	log.Println("Done")
 
 	successful_folder, err := b.createSuccessfulFolder(p.FullName())
 	if err != nil {
@@ -179,11 +184,16 @@ func (b *Builder) BuildPackage(src_path string) (string, error) {
 		return "", err
 	}
 
+	if err := os.Link(out_filepath, filepath.Join(successful_folder, out_filename)); err != nil {
+		return "", err
+	}
+
 	if err := b.createSuccessfulBuildLink(successful_folder); err != nil {
 		return "", err
 	}
 
 	os.RemoveAll(inprogress_folder)
+	os.RemoveAll(out_filepath)
 
 	return filepath.Join(successful_folder, out_filename), nil
 }
