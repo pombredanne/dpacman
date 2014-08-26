@@ -112,6 +112,7 @@ func (b *Builder) BuildPackage(src_path string) (string, error) {
 		}
 	}
 
+	log.Println("Compressing package...")
 	out_filename := filepath.Join(p.FullName() + ".tar.gz")
 	out_filepath := filepath.Join(inprogress_folder, out_filename)
 
@@ -167,6 +168,7 @@ func (b *Builder) BuildPackage(src_path string) (string, error) {
 		return "", err
 	}
 	f.Close()
+	log.Println("Done")
 
 	successful_folder, err := b.createSuccessfulFolder(p.FullName())
 	if err != nil {
