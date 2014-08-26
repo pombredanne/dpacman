@@ -101,6 +101,6 @@ var buildCmd = cli.Command{
 			log.Fatal(err)
 		}
 
-		fmt.Printf("Package correctly generated on %v !\n", out)
+		log.Printf("Package correctly generated on %v !\n", out)
 	},
 }
