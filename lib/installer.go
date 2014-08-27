@@ -2,7 +2,9 @@ package dpacman
 
 import (
 	"errors"
+	"fmt"
 	"log"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/fsouza/go-dockerclient"
@@ -73,11 +75,11 @@ func (in *Installer) InstallPackage(p *Package) error {
 }
 
 func (in *Installer) ImportImage(p *Package, img *Image) error {
-	opts := docker.ImportImageOptions{
-		Source:     filepath.Join(p.Path, img.Path),
-		Repository: img.Repo,
-		Tag:        img.Tag,
+	cmd := fmt.Sprintf("docker load -i %v", filepath.Join(p.Path, img.Path))
+	c := exec.Command("bash", "-c", cmd)
+	if out, err := c.CombinedOutput(); err != nil {
+		return errors.New("Error loading " + img.FullName() + ": " + string(out))
 	}
 
-	return in.DockerClient.ImportImage(opts)
+	return nil
 }
