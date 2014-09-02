@@ -249,6 +249,7 @@ func (b *Builder) prepareBuilderEnv() error {
 func (b *Builder) SaveImage(p *Package, img *Image) error {
 	// Export container as an image
 	cmd := fmt.Sprintf("docker save %v -o %v", img.FullName(), filepath.Join(p.Path, img.Path))
+	log.Println(cmd)
 	c := exec.Command("bash", "-c", cmd)
 	if out, err := c.CombinedOutput(); err != nil {
 		return errors.New("Error saving " + img.FullName() + ": " + string(out))
