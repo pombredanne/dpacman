@@ -13,7 +13,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/dotcloud/docker/archive"
+	"github.com/docker/docker/pkg/archive"
 	"gopkg.in/yaml.v1"
 )
 

@@ -10,7 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/dotcloud/docker/archive"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/fsouza/go-dockerclient"
 )
 
