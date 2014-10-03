@@ -39,7 +39,7 @@ func (in *Installer) InstallPackage(p *Package) error {
 
 	log.Print("Importing images")
 	for _, img := range p.Images {
-		log.Printf("Imporing image %s:%s...", img.Repo, img.Tag)
+		log.Printf("Importing image %s:%s...", img.Repo, img.Tag)
 		err := in.ImportImage(p, img)
 		if err != nil {
 			return errors.New("Error importing image " + img.Repo + " : " + err.Error())
