@@ -35,9 +35,13 @@ type Package struct {
 }
 
 const (
-	PACKAGE_SPEC_FILE = "Dpacman"
-	MARK_CONTENT_TMPL = "%v-%v-%v %v\n"
-	INFO_TMPL         = `Package: {{.Name}}
+	PACKAGE_SPEC_FILE              = "Dpacman"
+	INSTALLATION_MARK_CONTENT_TMPL = `name: %v
+version: %v
+release: %v
+epoch: %v
+`
+	INFO_TMPL = `Package: {{.Name}}
 Version: {{.Version}}-{{.Release}}
 Maintainer: {{.Maintainer}}
 Description: {{.Description}}
@@ -151,13 +155,13 @@ func (p *Package) DoPost() ([]byte, error) {
 }
 
 func (p *Package) CreateMark(marks_path string) error {
-	content := fmt.Sprintf(MARK_CONTENT_TMPL, p.Name, p.Version, p.Release, p.Epoch)
+	content := fmt.Sprintf(INSTALLATION_MARK_CONTENT_TMPL, p.Name, p.Version, p.Release, p.Epoch)
 
 	if err := os.MkdirAll(marks_path, 0755); err != nil {
 		return errors.New("Error creating " + path.Dir(marks_path) + " : " + err.Error())
 	}
 
-	f, err := os.Create(filepath.Join(marks_path, p.Name))
+	f, err := os.Create(filepath.Join(marks_path, p.Name+".package"))
 	if err != nil {
 		return errors.New("Error opening " + marks_path + " : " + err.Error())
 	}
