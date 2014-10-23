@@ -14,6 +14,11 @@ import (
 	"github.com/fsouza/go-dockerclient"
 )
 
+var TarOptions = &archive.TarOptions{
+	Includes:    []string{"Dpacman", "files", "images"},
+	Compression: archive.Gzip,
+}
+
 type Builder struct {
 	DockerClient           *docker.Client
 	BuilderRootFolder      string
@@ -122,7 +127,7 @@ func (b *Builder) BuildPackage(src_path string) (string, error) {
 
 	log.Println("Generating package...")
 
-	out, err := archive.Tar(inprogress_folder, archive.Gzip)
+	out, err := archive.TarWithOptions(inprogress_folder, TarOptions)
 	if err != nil {
 		log.Print("Error compressing " + inprogress_folder + " content")
 
