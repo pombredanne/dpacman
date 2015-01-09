@@ -15,8 +15,8 @@ import (
 )
 
 var TarOptions = &archive.TarOptions{
-	Includes:    []string{"Dpacman", "files", "images"},
-	Compression: archive.Gzip,
+	IncludeFiles: []string{"Dpacman", "files", "images"},
+	Compression:  archive.Gzip,
 }
 
 type Builder struct {
